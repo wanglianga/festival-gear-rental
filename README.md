@@ -1,0 +1,221 @@
+# 音乐节装备租赁与寄存系统
+
+## 原始需求
+
+> 请制作音乐节装备租赁与寄存页面，React 页面服务现场观众和物资点工作人员，展示帐篷、充电宝、雨衣、折叠椅、储物柜、取还点地图、押金、库存余量和演出时间。观众在手机上快速租借或寄存，看到离舞台、营地区、出口最近的领取位置、排队长度和归还截止；工作人员平板端扫码发放、验收损坏、处理柜门打不开和临时调拨。页面要能在强光、拥挤、单手拿饮料的场景下看清二维码、柜号、路线和超时提醒，所有弹层都不能挡住正在排队的关键凭证。
+
+## 项目简介
+
+音乐节现场装备租赁与寄存服务系统，面向现场观众和物资点工作人员双端用户，解决音乐节期间装备租借、行李寄存、点位导航等核心痛点。采用音乐节活力霓虹风格设计，支持强光模式、单手操作优化、底部弹层不遮挡凭证等特性。
+
+## 技术栈
+
+- **前端框架**: React 18 + TypeScript
+- **构建工具**: Vite 6
+- **样式方案**: Tailwind CSS 3
+- **状态管理**: Zustand
+- **路由管理**: React Router v7
+- **图标库**: Lucide React
+- **二维码**: qrcode.react
+- **数据持久化**: localStorage
+
+## 功能特性
+
+### 观众端（手机端）
+- 🏕️ **装备租赁**: 帐篷、充电宝、雨衣、折叠椅、储物柜五大类
+- 🗺️ **取还点地图**: 点位分布、排队长度、预计等待时间
+- 📱 **快速租借**: 一键下单、即时生成取件凭证
+- 🎫 **取件凭证**: 大尺寸二维码、取件码、柜号清晰展示
+- ⏰ **订单管理**: 进行中订单、归还倒计时、超时提醒
+- ☀️ **强光模式**: 一键切换高对比度模式，强光下清晰可见
+- 💡 **屏幕增亮**: 取件凭证页可开启屏幕增亮，便于扫码
+
+### 工作人员端（平板端）
+- 📊 **数据看板**: 今日发放、归还、损坏、故障等数据概览
+- 📷 **扫码发放**: 扫描用户取件码，快速确认发放
+- ✅ **验收归还**: 物品状态检查、损坏等级评定、费用扣除
+- 🔐 **柜门管理**: 故障列表、远程开箱、问题解决
+- 🔄 **库存调拨**: 点间调拨、库存管理、实时同步
+
+## 启动方式
+
+### 前置要求
+
+- Node.js >= 18.0.0
+- npm >= 9.0.0
+- Docker & Docker Compose（可选，用于Docker部署）
+
+### 开发模式启动
+
+#### 1. 安装依赖
+
+```bash
+npm install
+```
+
+#### 2. 启动开发服务器
+
+```bash
+npm run dev
+```
+
+访问地址：http://localhost:5173
+
+### 生产模式构建
+
+#### 1. 安装依赖
+
+```bash
+npm install
+```
+
+#### 2. 构建生产版本
+
+```bash
+npm run build
+```
+
+构建产物将输出到 `dist` 目录。
+
+#### 3. 本地预览生产构建
+
+```bash
+npm run preview
+```
+
+访问地址：http://localhost:4173
+
+### Docker 一键启动（推荐）
+
+#### 1. 构建并启动
+
+```bash
+docker compose up --build
+```
+
+如需后台运行：
+
+```bash
+docker compose up --build -d
+```
+
+#### 2. 访问应用
+
+访问地址：http://localhost:3000
+
+#### 3. 停止服务
+
+```bash
+docker compose down
+```
+
+## 页面路由
+
+| 路由 | 页面 | 说明 |
+|------|------|------|
+| `/` | 观众首页 | 装备列表、演出倒计时、库存信息 |
+| `/map` | 取还点地图 | 点位分布、排队情况、导航指引 |
+| `/rent/:id` | 租借确认 | 装备详情、数量选择、取件点选择 |
+| `/voucher/:orderId` | 取件凭证 | 二维码、取件码、倒计时 |
+| `/orders` | 我的订单 | 订单列表、状态跟踪 |
+| `/profile` | 个人中心 | 用户信息、设置、切换角色 |
+| `/staff` | 工作人员首页 | 数据看板、快捷操作 |
+| `/staff/scan` | 扫码发放 | 扫描取件码、确认发放 |
+| `/staff/return` | 验收归还 | 物品检查、损坏登记 |
+| `/staff/locker` | 柜门管理 | 故障处理、远程开箱 |
+| `/staff/transfer` | 库存调拨 | 点间调拨、库存管理 |
+
+## 目录结构
+
+```
+src/
+├── components/          # 组件目录
+│   ├── common/         # 通用组件
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   ├── BottomSheet.tsx
+│   │   ├── QRCodeDisplay.tsx
+│   │   ├── CountdownTimer.tsx
+│   │   ├── StatusBadge.tsx
+│   │   ├── ProgressBar.tsx
+│   │   ├── BrightModeToggle.tsx
+│   │   └── BottomNav.tsx
+│   └── business/       # 业务组件
+│       ├── EquipmentCard.tsx
+│       ├── OrderCard.tsx
+│       ├── PickupVoucher.tsx
+│       ├── ScanFrame.tsx
+│       ├── StaffDashboardCard.tsx
+│       └── PickupPointCard.tsx
+├── pages/              # 页面组件
+│   ├── HomePage.tsx
+│   ├── MapPage.tsx
+│   ├── RentConfirmPage.tsx
+│   ├── VoucherPage.tsx
+│   ├── OrdersPage.tsx
+│   ├── ProfilePage.tsx
+│   ├── StaffHomePage.tsx
+│   ├── StaffScanPage.tsx
+│   ├── StaffReturnPage.tsx
+│   ├── StaffLockerPage.tsx
+│   └── StaffTransferPage.tsx
+├── store/              # 状态管理
+│   ├── useAppStore.ts
+│   ├── useEquipmentStore.ts
+│   └── useOrderStore.ts
+├── types/              # 类型定义
+│   └── index.ts
+├── data/               # Mock数据
+│   └── mockData.ts
+├── utils/              # 工具函数
+│   └── format.ts
+├── hooks/              # 自定义Hooks
+│   └── useBrightMode.ts
+├── lib/                # 工具库
+│   └── utils.ts
+├── App.tsx             # 应用入口
+├── main.tsx            # 主入口
+└── index.css           # 全局样式
+```
+
+## 设计特点
+
+### 🎨 视觉设计
+- **霓虹风格**: 采用霓虹粉、电光紫、荧光绿等音乐节主题色彩
+- **深色主题**: 默认深色模式，霓虹发光效果
+- **渐变动画**: 丰富的渐变和发光效果
+
+### ☀️ 强光适配
+- 一键强光模式切换
+- 高对比度黑白配色
+- 大字号、粗体字
+- 二维码自动优化
+
+### 👆 单手操作
+- 底部导航栏，拇指可达区域
+- 大按钮设计（最小48px）
+- 重要操作放在屏幕下半部
+
+### 📋 弹层设计
+- 所有弹层从底部升起（Bottom Sheet）
+- 最大高度不超过屏幕60%
+- 不遮挡顶部关键凭证信息
+- 取件凭证固定显示
+
+## 注意事项
+
+- 项目使用 Mock 数据，所有数据存储在 localStorage 中
+- 工作人员模式可在"个人中心"页面切换
+- 扫码功能为模拟演示，点击"模拟扫描"按钮可测试
+- 强光模式和屏幕增亮功能可有效提升户外可见性
+- 建议在手机或平板设备上使用以获得最佳体验
+
+## 开发脚本
+
+```bash
+npm run dev      # 启动开发服务器
+npm run build    # 构建生产版本
+npm run preview  # 预览生产构建
+npm run lint     # 代码检查
+npm run check    # 类型检查
+```
