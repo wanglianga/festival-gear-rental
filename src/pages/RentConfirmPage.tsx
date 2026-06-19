@@ -1,27 +1,60 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, MapPin, Clock, Plus, Minus, Check } from 'lucide-react';
+import { 
+  ArrowLeft, ShieldCheck, MapPin, Clock, Plus, Minus, Check, 
+  AlertTriangle, AlertCircle, CheckCircle2, Users, 
+  Navigation, RefreshCw, Star, ShieldAlert 
+} from 'lucide-react';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
 import { BottomSheet } from '../components/common/BottomSheet';
 import { PickupPointCard } from '../components/business/PickupPointCard';
 import { useEquipmentStore } from '../store/useEquipmentStore';
 import { useOrderStore } from '../store/useOrderStore';
-import { formatCurrency, getStockStatus } from '../utils/format';
+import { useScheduleStore } from '../store/useScheduleStore';
+import { useLockerStore } from '../store/useLockerStore';
+import { formatCurrency, getStockStatus, formatTime } from '../utils/format';
+import { cn } from '../lib/utils';
+import type { TimeConflictResult, ConflictSuggestion, PickupPoint } from '../types';
 
 export const RentConfirmPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { getEquipmentById, pickupPoints } = useEquipmentStore();
   const { createOrder } = useOrderStore();
+  const { checkTimeConflict, getFavoriteSchedules, getNextUpcomingSchedule, getAlternativePoints, toggleFavorite } = useScheduleStore();
+  const { createCompanionAuthorization } = useLockerStore();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedPoint, setSelectedPoint] = useState('point-1');
+  const [selectedDate, setSelectedDate] = useState('2026-06-17');
+  const [selectedTime, setSelectedTime] = useState('17:00');
   const [showPointSelect, setShowPointSelect] = useState(false);
+  const [showTimeSelect, setShowTimeSelect] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showScheduleSelect, setShowScheduleSelect] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [conflictResult, setConflictResult] = useState<TimeConflictResult | null>(null);
+  const [authorizedName, setAuthorizedName] = useState('');
+  const [authorizedPhone, setAuthorizedPhone] = useState('');
 
   const equipment = getEquipmentById(id || '');
   const selectedPointData = pickupPoints.find((p) => p.id === selectedPoint);
+  const favoriteSchedules = getFavoriteSchedules();
+  const nextShow = getNextUpcomingSchedule();
+  const alternativePoints = getAlternativePoints(selectedPoint, id || 'all');
+
+  useEffect(() => {
+    const fullDateTime = `${selectedDate}T${selectedTime}:00`;
+    const result = checkTimeConflict(fullDateTime, selectedPoint, 'pickup');
+    setConflictResult(result);
+  }, [selectedTime, selectedPoint, selectedDate, checkTimeConflict]);
+
+  const timeSlots = [
+    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+    '17:00', '17:30', '18:00', '18:30', '19:00', '19:30',
+    '20:00', '20:30', '21:00',
+  ];
 
   if (!equipment) {
     return (
@@ -65,8 +98,81 @@ export const RentConfirmPage = () => {
     }, 1500);
   };
 
+  const handleSuggestionClick = (suggestion: ConflictSuggestion) => {
+    switch (suggestion.type) {
+      case 'earlier_pickup':
+        const earlierTime = timeSlots[Math.max(0, timeSlots.indexOf(selectedTime) - 2)];
+        setSelectedTime(earlierTime);
+        break;
+      case 'change_point':
+        if (alternativePoints.length > 0) {
+          setSelectedPoint(alternativePoints[0].id);
+        }
+        break;
+      case 'authorize_companion':
+        setShowAuthModal(true);
+        break;
+    }
+  };
+
+  const handleCreateAuthorization = () => {
+    if (!authorizedName || !authorizedPhone) return;
+    const order = createOrder({
+      type: equipment.category === 'locker' ? 'store' : 'rent',
+      userId: 'user-1',
+      equipmentId: equipment.id,
+      equipmentName: equipment.name,
+      quantity,
+      pickupPointId: selectedPoint,
+      pickupPointName: selectedPointData?.name || '',
+      deposit: totalDeposit,
+      rentalFee: totalFee,
+      status: 'pending',
+      dueAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+    });
+    createCompanionAuthorization({
+      orderId: order.id,
+      authorizerId: 'user-1',
+      authorizerName: '张先生',
+      authorizedName,
+      authorizedPhone,
+      expiresAt: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(),
+    });
+    setShowAuthModal(false);
+    navigate(`/voucher/${order.id}`);
+  };
+
+  const handlePointChange = (pointId: string) => {
+    setSelectedPoint(pointId);
+    setShowPointSelect(false);
+  };
+
   const dueTime = new Date();
   dueTime.setHours(22, 0, 0, 0);
+
+  const conflictLevelConfig = {
+    safe: {
+      icon: CheckCircle2,
+      bgColor: 'bg-neon-green/10',
+      borderColor: 'border-neon-green/30',
+      iconColor: 'text-neon-green',
+      titleColor: 'text-neon-green',
+    },
+    warning: {
+      icon: AlertTriangle,
+      bgColor: 'bg-neon-yellow/10',
+      borderColor: 'border-neon-yellow/30',
+      iconColor: 'text-neon-yellow',
+      titleColor: 'text-neon-yellow',
+    },
+    danger: {
+      icon: AlertCircle,
+      bgColor: 'bg-red-500/10',
+      borderColor: 'border-red-500/30',
+      iconColor: 'text-red-500',
+      titleColor: 'text-red-500',
+    },
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-festival-dark to-festival-purple pb-32">
@@ -172,6 +278,115 @@ export const RentConfirmPage = () => {
         </Card>
 
         <Card padding="lg" className="mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-white">领取时间</h3>
+            <button
+              onClick={() => setShowScheduleSelect(true)}
+              className="text-sm text-neon-purple hover:text-neon-pink transition-colors flex items-center gap-1"
+            >
+              <Star size={16} />
+              关注演出
+            </button>
+          </div>
+          <div
+            className="cursor-pointer hover:bg-white/5 rounded-2xl -m-1 p-1"
+            onClick={() => setShowTimeSelect(true)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-neon-blue/20 rounded-xl">
+                  <Clock className="text-neon-blue" size={22} />
+                </div>
+                <div>
+                  <p className="text-white font-medium">{selectedDate} {selectedTime}</p>
+                  <p className="text-sm text-gray-400">
+                    预计耗时约 {checkTimeConflict(`${selectedDate}T${selectedTime}:00`, selectedPoint, 'pickup').bufferMinutes > 100 ? '15' : Math.max(5, 15 - checkTimeConflict(`${selectedDate}T${selectedTime}:00`, selectedPoint, 'pickup').bufferMinutes)} 分钟
+                  </p>
+                </div>
+              </div>
+              <ArrowLeft size={20} className="text-gray-400 rotate-180" />
+            </div>
+          </div>
+        </Card>
+
+        {conflictResult && conflictResult.level !== 'safe' && (
+          <Card
+            padding="lg"
+            className={cn(
+              'mb-4 border-2',
+              conflictLevelConfig[conflictResult.level].bgColor,
+              conflictLevelConfig[conflictResult.level].borderColor
+            )}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className={cn(
+                'p-2 rounded-lg flex-shrink-0',
+                conflictLevelConfig[conflictResult.level].bgColor
+              )}>
+                {(() => {
+                  const Icon = conflictLevelConfig[conflictResult.level].icon;
+                  return <Icon className={conflictLevelConfig[conflictResult.level].iconColor} size={24} />;
+                })()}
+              </div>
+              <div className="flex-1">
+                <h4 className={cn(
+                  'font-bold text-lg mb-1',
+                  conflictLevelConfig[conflictResult.level].titleColor
+                )}>
+                  {conflictResult.title}
+                </h4>
+                <p className="text-gray-300 text-sm">{conflictResult.description}</p>
+                {nextShow && (
+                  <div className="mt-3 p-3 bg-black/30 rounded-xl">
+                    <p className="text-white text-sm font-medium mb-1">
+                      🎵 下一场关注演出
+                    </p>
+                    <p className="text-neon-yellow text-sm">
+                      {nextShow.artist} - {nextShow.stageName}
+                    </p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {formatTime(nextShow.startTime)} 开始
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {conflictResult.suggestions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-white text-sm font-medium">💡 建议方案</p>
+                {conflictResult.suggestions.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className="w-full p-3 bg-white/5 hover:bg-white/10 rounded-xl text-left transition-all group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="p-1.5 bg-neon-purple/20 rounded-lg flex-shrink-0 mt-0.5">
+                        {suggestion.type === 'earlier_pickup' && <RefreshCw size={16} className="text-neon-purple" />}
+                        {suggestion.type === 'change_point' && <Navigation size={16} className="text-neon-purple" />}
+                        {suggestion.type === 'authorize_companion' && <Users size={16} className="text-neon-purple" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-medium text-sm group-hover:text-neon-purple transition-colors">
+                          {suggestion.title}
+                        </p>
+                        <p className="text-gray-400 text-xs mt-0.5">
+                          {suggestion.description}
+                        </p>
+                      </div>
+                      <div className="text-neon-purple text-sm font-medium">
+                        {suggestion.actionText} →
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        <Card padding="lg" className="mb-4">
           <h3 className="text-lg font-bold text-white mb-4">费用明细</h3>
           <div className="space-y-3">
             <div className="flex justify-between">
@@ -235,10 +450,7 @@ export const RentConfirmPage = () => {
                 <PickupPointCard
                   point={point}
                   selected={selectedPoint === point.id}
-                  onClick={() => {
-                    setSelectedPoint(point.id);
-                    setShowPointSelect(false);
-                  }}
+                  onClick={() => handlePointChange(point.id)}
                 />
                 {selectedPoint === point.id && (
                   <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-neon-green flex items-center justify-center">
@@ -249,6 +461,145 @@ export const RentConfirmPage = () => {
             ))}
         </div>
       </BottomSheet>
+
+      <BottomSheet
+        isOpen={showTimeSelect}
+        onClose={() => setShowTimeSelect(false)}
+        title="选择领取时间"
+        maxHeight="60vh"
+      >
+        <div className="mb-4">
+          <p className="text-gray-400 text-sm mb-3">请选择您计划领取的时间</p>
+          <div className="grid grid-cols-3 gap-3">
+            {timeSlots.map((time) => (
+              <button
+                key={time}
+                onClick={() => {
+                  setSelectedTime(time);
+                  setShowTimeSelect(false);
+                }}
+                className={cn(
+                  'py-3 px-4 rounded-xl text-center font-medium transition-all',
+                  selectedTime === time
+                    ? 'bg-gradient-to-r from-neon-pink to-neon-purple text-white shadow-lg'
+                    : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                )}
+              >
+                {time}
+              </button>
+            ))}
+          </div>
+        </div>
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={showScheduleSelect}
+        onClose={() => setShowScheduleSelect(false)}
+        title="关注的演出"
+        maxHeight="70vh"
+      >
+        <div className="space-y-3">
+          <p className="text-gray-400 text-sm mb-2">
+            选择您关注的演出，系统将自动检测时间冲突
+          </p>
+          {favoriteSchedules.map((schedule) => (
+            <Card key={schedule.id} padding="md" className="bg-white/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => toggleFavorite(schedule.id)}
+                    className="p-2 rounded-lg"
+                  >
+                    <Star
+                      size={20}
+                      className={schedule.isFavorite ? 'text-neon-yellow fill-neon-yellow' : 'text-gray-500'}
+                    />
+                  </button>
+                  <div>
+                    <p className="text-white font-medium">{schedule.artist}</p>
+                    <p className="text-gray-400 text-sm">{schedule.stageName}</p>
+                    <p className="text-neon-purple text-xs mt-1">
+                      {formatTime(schedule.startTime)} - {formatTime(schedule.endTime)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      </BottomSheet>
+
+      {showAuthModal && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-lg bg-festival-dark rounded-t-3xl p-6 animate-slide-up">
+            <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-6" />
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="p-3 bg-neon-purple/20 rounded-xl">
+                <Users className="text-neon-purple" size={24} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">授权同伴代取</h3>
+                <p className="text-gray-400 text-sm">生成代取码，让朋友帮您领取</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-white text-sm font-medium mb-2 block">
+                  同伴姓名
+                </label>
+                <input
+                  type="text"
+                  value={authorizedName}
+                  onChange={(e) => setAuthorizedName(e.target.value)}
+                  placeholder="请输入同伴姓名"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple/50"
+                />
+              </div>
+              <div>
+                <label className="text-white text-sm font-medium mb-2 block">
+                  联系电话
+                </label>
+                <input
+                  type="tel"
+                  value={authorizedPhone}
+                  onChange={(e) => setAuthorizedPhone(e.target.value)}
+                  placeholder="请输入联系电话"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-neon-purple/50"
+                />
+              </div>
+            </div>
+
+            <div className="p-4 bg-neon-yellow/10 border border-neon-yellow/20 rounded-xl mb-6">
+              <div className="flex items-start gap-2">
+                <ShieldAlert className="text-neon-yellow flex-shrink-0 mt-0.5" size={18} />
+                <p className="text-neon-yellow text-sm">
+                  代取码生成后 4 小时内有效，请注意保管。领取时工作人员将核验代取人身份。
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => setShowAuthModal(false)}
+              >
+                取消
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                disabled={!authorizedName || !authorizedPhone}
+                onClick={handleCreateAuthorization}
+              >
+                生成代取码
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

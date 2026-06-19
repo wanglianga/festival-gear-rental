@@ -9,6 +9,7 @@ import { RentConfirmPage } from './pages/RentConfirmPage';
 import { VoucherPage } from './pages/VoucherPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { LockerViewPage } from './pages/LockerViewPage';
 
 import { StaffHomePage } from './pages/StaffHomePage';
 import { StaffScanPage } from './pages/StaffScanPage';
@@ -32,6 +33,7 @@ function App() {
           <Route path="/voucher/:orderId" element={<VoucherPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/locker/:pointId" element={<LockerViewPage />} />
 
           <Route path="/staff" element={<StaffHomePage />} />
           <Route path="/staff/scan" element={<StaffScanPage />} />

@@ -99,3 +99,102 @@ export interface StockTransfer {
   completedAt?: string;
   operator: string;
 }
+
+export interface StageSchedule {
+  id: string;
+  stageName: string;
+  artist: string;
+  startTime: string;
+  endTime: string;
+  date: string;
+  isFavorite: boolean;
+}
+
+export type LockerStatus = 'free' | 'occupied' | 'broken' | 'reserved' | 'timeout_soon' | 'manual_locked';
+
+export interface Locker {
+  id: string;
+  lockerNo: string;
+  pointId: string;
+  pointName: string;
+  area: string;
+  size: 's' | 'l';
+  status: LockerStatus;
+  orderId?: string;
+  occupiedAt?: string;
+  dueAt?: string;
+  reservedUntil?: string;
+  manualLockReason?: string;
+}
+
+export interface SecurityCheckPoint {
+  id: string;
+  name: string;
+  pointId: string;
+  distance: number;
+  waitTime: number;
+  queueLength: number;
+}
+
+export type ConflictLevel = 'safe' | 'warning' | 'danger';
+
+export interface ConflictSuggestion {
+  type: 'change_point' | 'earlier_pickup' | 'authorize_companion';
+  title: string;
+  description: string;
+  actionText: string;
+}
+
+export interface TimeConflictResult {
+  level: ConflictLevel;
+  title: string;
+  description: string;
+  arrivalTime?: string;
+  bufferMinutes: number;
+  suggestions: ConflictSuggestion[];
+}
+
+export interface LockerOpenRecord {
+  id: string;
+  lockerId: string;
+  lockerNo: string;
+  pointId: string;
+  orderId?: string;
+  userId: string;
+  operationType: 'open' | 'close' | 'manual_open';
+  operatedAt: string;
+  success: boolean;
+  failureReason?: string;
+}
+
+export interface LockerFaultRecord {
+  id: string;
+  lockerId: string;
+  lockerNo: string;
+  pointId: string;
+  pointName: string;
+  type: 'open_fail' | 'close_fail' | 'damage' | 'lock_fail' | 'other';
+  status: 'pending' | 'processing' | 'resolved';
+  description: string;
+  reportTime: string;
+  reportSource: 'user' | 'staff' | 'system';
+  orderId?: string;
+  userId?: string;
+  openRecordId?: string;
+  handledBy?: string;
+  handledAt?: string;
+  resolution?: string;
+}
+
+export interface CompanionAuthorization {
+  id: string;
+  orderId: string;
+  authorizerId: string;
+  authorizerName: string;
+  authorizedName: string;
+  authorizedPhone: string;
+  pickupCode: string;
+  expiresAt: string;
+  createdAt: string;
+  isUsed: boolean;
+}

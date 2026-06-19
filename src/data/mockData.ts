@@ -1,4 +1,17 @@
-import type { Equipment, PickupPoint, Order, Festival, StaffStats, StockTransfer } from '../types';
+import type {
+  Equipment,
+  PickupPoint,
+  Order,
+  Festival,
+  StaffStats,
+  StockTransfer,
+  StageSchedule,
+  Locker,
+  SecurityCheckPoint,
+  LockerOpenRecord,
+  LockerFaultRecord,
+  CompanionAuthorization,
+} from '../types';
 
 export const festivalData: Festival = {
   name: '夏日星空音乐节',
@@ -334,4 +347,219 @@ export const generateOrderNo = (): string => {
   const dateStr = now.toISOString().slice(0, 10).replace(/-/g, '');
   const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
   return `MF${dateStr}${random}`;
+};
+
+export const stageSchedules: StageSchedule[] = [
+  {
+    id: 'stage-1',
+    stageName: '主舞台',
+    artist: '压轴乐队 - 夏日星空',
+    startTime: '2026-06-17T20:00:00',
+    endTime: '2026-06-17T22:30:00',
+    date: '2026-06-17',
+    isFavorite: true,
+  },
+  {
+    id: 'stage-2',
+    stageName: '主舞台',
+    artist: '极光乐队',
+    startTime: '2026-06-17T17:30:00',
+    endTime: '2026-06-17T19:30:00',
+    date: '2026-06-17',
+    isFavorite: true,
+  },
+  {
+    id: 'stage-3',
+    stageName: '电音舞台',
+    artist: 'DJ Nova',
+    startTime: '2026-06-17T21:00:00',
+    endTime: '2026-06-17T23:00:00',
+    date: '2026-06-17',
+    isFavorite: false,
+  },
+  {
+    id: 'stage-4',
+    stageName: '民谣舞台',
+    artist: '林小夏',
+    startTime: '2026-06-17T15:00:00',
+    endTime: '2026-06-17T16:30:00',
+    date: '2026-06-17',
+    isFavorite: false,
+  },
+  {
+    id: 'stage-5',
+    stageName: '主舞台',
+    artist: '开场乐队 - 晨光',
+    startTime: '2026-06-17T14:00:00',
+    endTime: '2026-06-17T16:00:00',
+    date: '2026-06-17',
+    isFavorite: true,
+  },
+];
+
+const generateLockers = (pointId: string, pointName: string, area: string, start: number, count: number, size: 's' | 'l'): Locker[] => {
+  const statuses: Locker['status'][] = ['free', 'occupied', 'broken', 'reserved', 'timeout_soon', 'manual_locked'];
+  return Array.from({ length: count }, (_, i) => {
+    const idx = start + i;
+    let status: Locker['status'] = 'free';
+    if (idx % 7 === 0) status = 'occupied';
+    else if (idx % 11 === 0) status = 'broken';
+    else if (idx % 13 === 0) status = 'reserved';
+    else if (idx % 17 === 0) status = 'timeout_soon';
+    else if (idx % 19 === 0) status = 'manual_locked';
+    
+    return {
+      id: `locker-${pointId}-${idx}`,
+      lockerNo: `${area}区-${String(idx).padStart(3, '0')}号`,
+      pointId,
+      pointName,
+      area,
+      size,
+      status,
+      ...(status === 'occupied' || status === 'timeout_soon' ? {
+        orderId: `order-${1000 + idx}`,
+        occupiedAt: new Date(Date.now() - Math.random() * 4 * 60 * 60 * 1000).toISOString(),
+        dueAt: new Date(Date.now() + (status === 'timeout_soon' ? 10 : 60) * 60 * 1000).toISOString(),
+      } : {}),
+      ...(status === 'reserved' ? {
+        reservedUntil: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      } : {}),
+      ...(status === 'manual_locked' ? {
+        manualLockReason: '维护中',
+      } : {}),
+    };
+  });
+};
+
+export const lockers: Locker[] = [
+  ...generateLockers('point-1', '主舞台取还点', 'A', 1, 50, 's'),
+  ...generateLockers('point-1', '主舞台取还点', 'B', 51, 50, 'l'),
+  ...generateLockers('point-2', '营地区服务站', 'C', 1, 40, 's'),
+  ...generateLockers('point-2', '营地区服务站', 'D', 41, 40, 'l'),
+  ...generateLockers('point-3', '出口处服务点', 'E', 1, 60, 's'),
+  ...generateLockers('point-3', '出口处服务点', 'F', 61, 60, 'l'),
+];
+
+export const securityCheckPoints: SecurityCheckPoint[] = [
+  {
+    id: 'sec-1',
+    name: '主入口安检',
+    pointId: 'point-1',
+    distance: 80,
+    waitTime: 3,
+    queueLength: 5,
+  },
+  {
+    id: 'sec-2',
+    name: 'VIP入口安检',
+    pointId: 'point-1',
+    distance: 120,
+    waitTime: 1,
+    queueLength: 2,
+  },
+  {
+    id: 'sec-3',
+    name: '营地入口安检',
+    pointId: 'point-2',
+    distance: 60,
+    waitTime: 2,
+    queueLength: 3,
+  },
+  {
+    id: 'sec-4',
+    name: '出口安检',
+    pointId: 'point-3',
+    distance: 40,
+    waitTime: 1,
+    queueLength: 1,
+  },
+];
+
+export const lockerOpenRecords: LockerOpenRecord[] = [
+  {
+    id: 'record-1',
+    lockerId: 'locker-point-1-1',
+    lockerNo: 'A区-001号',
+    pointId: 'point-1',
+    orderId: 'order-2',
+    userId: 'user-1',
+    operationType: 'open',
+    operatedAt: '2026-06-17T09:15:00',
+    success: true,
+  },
+  {
+    id: 'record-2',
+    lockerId: 'locker-point-1-11',
+    lockerNo: 'A区-011号',
+    pointId: 'point-1',
+    userId: 'user-2',
+    operationType: 'open',
+    operatedAt: '2026-06-17T10:30:00',
+    success: false,
+    failureReason: '柜门未弹开，机械故障',
+  },
+];
+
+export const initialLockerFaults: LockerFaultRecord[] = [
+  {
+    id: 'fault-1',
+    lockerId: 'locker-point-1-11',
+    lockerNo: 'A区-011号',
+    pointId: 'point-1',
+    pointName: '主舞台取还点',
+    type: 'open_fail',
+    status: 'pending',
+    description: '用户扫码后柜门未弹开，尝试多次仍无法打开',
+    reportTime: '2026-06-17T10:32:00',
+    reportSource: 'user',
+    orderId: 'order-1011',
+    userId: 'user-2',
+    openRecordId: 'record-2',
+  },
+  {
+    id: 'fault-2',
+    lockerId: 'locker-point-2-55',
+    lockerNo: 'D区-055号',
+    pointId: 'point-2',
+    pointName: '营地区服务站',
+    type: 'damage',
+    status: 'processing',
+    description: '柜门损坏，需要更换锁具',
+    reportTime: '2026-06-17T08:15:00',
+    reportSource: 'staff',
+    handledBy: '王五',
+    handledAt: '2026-06-17T08:30:00',
+    resolution: '已联系维修人员',
+  },
+];
+
+export const initialCompanionAuthorizations: CompanionAuthorization[] = [
+  {
+    id: 'auth-1',
+    orderId: 'order-3',
+    authorizerId: 'user-1',
+    authorizerName: '张先生',
+    authorizedName: '李同伴',
+    authorizedPhone: '138****8888',
+    pickupCode: 'D4521',
+    expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    isUsed: false,
+  },
+];
+
+export const getNextLockerId = (): string => {
+  return `locker-${Date.now()}`;
+};
+
+export const generateFaultId = (): string => {
+  return `fault-${Date.now()}`;
+};
+
+export const generateOpenRecordId = (): string => {
+  return `record-${Date.now()}`;
+};
+
+export const generateAuthorizationId = (): string => {
+  return `auth-${Date.now()}`;
 };

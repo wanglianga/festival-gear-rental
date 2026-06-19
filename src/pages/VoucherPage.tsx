@@ -149,6 +149,15 @@ export const VoucherPage = () => {
             </button>
           </div>
 
+          {isUsing && order.type === 'store' && (
+            <button
+              onClick={() => navigate(`/locker/${order.pickupPointId}`)}
+              className="w-full py-4 rounded-2xl bg-gradient-to-r from-neon-blue to-neon-purple text-white font-bold text-lg shadow-neon-blue active:scale-[0.98] transition-transform mb-3"
+            >
+              🗄️ 查看储物柜并开柜
+            </button>
+          )}
+
           {isUsing && (
             <button
               onClick={() => navigate('/map')}
